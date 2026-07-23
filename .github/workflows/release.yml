@@ -14,16 +14,48 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build OpenWrt Package
-        uses: manhhacnpc/openwrt-package-compile-action@main
-        with:
-          package-name: 'kmod-rtl8812eu'
-          package-dir: 'https://github.com/svpcom/rtl8812eu-openwrt.git'
-          sdk-url-override: 'https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz'
+      - name: Install build dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev zstd xz-utils
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          # 1. Tải SDK OpenWrt 25.12.2 (Chip Ramips MT7621)
+          # Lưu ý: Nếu router dùng chip/target khác mt7621, hãy thay đường dẫn bên dưới!
+          wget -O sdk.tar.xz "https://downloads.openwrt.org/releases/25.12.2/targets/ramips/mt7621/openwrt-sdk-25.12.2-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          
+          # 2. Giải nén SDK bằng xz/tar
+          tar -xf sdk.tar.xz
+          rm sdk.tar.xz
+          
+          # 3. Đổi tên thư mục SDK
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: Build RTL8812EU Package
+        run: |
+          cd openwrt-sdk
+          
+          # Clone driver rtl8812eu vào thư mục package
+          git clone https://github.com/svpcom/rtl8812eu-openwrt.git package/rtl8812eu
+          
+          # Cập nhật feeds
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Cấu hình build package kmod-rtl8812eu
+          echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
+          make defconfig
+          make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
         with:
-          files: bin/packages/*
+          files: |
+            openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.apk
+            openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
+            openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
+            openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
