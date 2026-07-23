@@ -47,7 +47,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module
+          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module (dùng *.ko cho mọi tên module)
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
@@ -60,8 +60,8 @@ jobs:
           define KernelPackage/rtl8812eu
             SUBMENU:=Wireless Drivers
             TITLE:=Realtek RTL8812EU Wireless Driver
-            FILES:=$(PKG_BUILD_DIR)/rtl8812eu.ko
-            AUTOLOAD:=$(call AutoProbe,rtl8812eu)
+            FILES:=$(PKG_BUILD_DIR)/*.ko
+            AUTOLOAD:=$(call AutoProbe,8812eu rtl8812eu)
             DEPENDS:=+kmod-cfg80211
           endef
 
@@ -80,7 +80,6 @@ jobs:
           \t\tCROSS_COMPILE="$(TARGET_CROSS)" \\
           \t\tM="$(PKG_BUILD_DIR)" \\
           \t\tUSER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN -Wno-error=date-time" \\
-          \t\tCONFIG_RTL8812EU=m \\
           \t\tmodules
           endef
 
@@ -100,7 +99,7 @@ jobs:
           # 5. Biên dịch đích danh gói kmod-rtl8812eu
           make package/rtl8812eu/compile V=s -j$(nproc)
 
-          # 6. Kiểm tra các file apk / ipk vừa tạo
+          # 6. Liệt kê các file gói đã được đóng gói thành công
           echo "=== List of compiled package files ==="
           find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \)
 
