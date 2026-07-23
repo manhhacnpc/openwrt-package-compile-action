@@ -22,7 +22,6 @@ jobs:
 
       - name: Download & Extract OpenWrt 23.05 SDK
         run: |
-          # Sử dụng trực tiếp SDK phiên bản ổn định 23.05.6 cho ramips/mt7621
           SDK_URL="https://downloads.openwrt.org/releases/23.05.6/targets/ramips/mt7621/openwrt-sdk-23.05.6-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           
           echo "Downloading SDK from $SDK_URL"
@@ -39,7 +38,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Vá Makefile của driver để tương thích với cấu trúc biên dịch module ngoài
+          # 2. Vá Makefile của driver để nhận diện đúng module 'm'
           cd package/rtl8812eu/src
           sed -i 's/ifeq ($(CONFIG_RTL8812EU), y)/ifneq ($(CONFIG_RTL8812EU), n)/g' Makefile
           sed -i 's/obj-\$(CONFIG_RTL8812EU) :=/obj-m :=/g' Makefile
@@ -49,7 +48,7 @@ jobs:
           echo "obj-m := 8812eu.o" >> Makefile
           cd ../../..
 
-          # 3. Tạo OpenWrt Package Makefile chuẩn cho bản 23.05
+          # 3. Tạo OpenWrt Package Makefile chuẩn, bổ sung cờ ép bỏ qua lỗi cảnh báo C (-w và -Wno-error)
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -81,15 +80,15 @@ jobs:
           		ARCH="$(LINUX_KARCH)" \
           		CROSS_COMPILE="$(TARGET_CROSS)" \
           		M="$(PKG_BUILD_DIR)" \
-          		KCFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
-          		EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
+          		KCFLAGS="-w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -DCONFIG_LITTLE_ENDIAN" \
+          		EXTRA_CFLAGS="-w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -DCONFIG_LITTLE_ENDIAN" \
           		modules
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
           EOF
 
-          # 4. Xóa cache và thiết lập cấu hình gói kmod
+          # 4. Xóa cache và cấu hình biên dịch
           rm -rf tmp
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
