@@ -43,14 +43,59 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Git clone trực tiếp package repo rtl8812eu đã có Makefile chuẩn
-          git clone https://github.com/morytyann/OpenWrt-RTL8812EU.git package/rtl8812eu
+          # 1. Clone driver chính chủ svpcom/rtl8812eu (Public Repo)
+          git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Cấu hình chọn gói kmod-rtl8812eu
+          # 2. Viết Makefile chuẩn 100% bằng cách chèn Tab bằng Bash
+          cat << 'EOF' > package/rtl8812eu/Makefile
+          include $(TOPDIR)/rules.mk
+
+          PKG_NAME:=rtl8812eu
+          PKG_VERSION:=5.15.0.1
+          PKG_RELEASE:=1
+
+          include $(INCLUDE_DIR)/kernel.mk
+
+          define KernelPackage/rtl8812eu
+            SUBMENU:=Wireless Drivers
+            TITLE:=Realtek RTL8812EU Wireless Driver
+            FILES:=$(PKG_BUILD_DIR)/rtl8812eu.ko
+            AUTOLOAD:=$(call AutoProbe,rtl8812eu)
+            DEPENDS:=+kmod-cfg80211
+          endef
+
+          define KernelPackage/rtl8812eu/description
+            Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.
+          endef
+
+          MAKE_OPTS:= \
+            ARCH="$(LINUX_KARCH)" \
+            CROSS_COMPILE="$(TARGET_CROSS)" \
+            M="$(PKG_BUILD_DIR)" \
+            USER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN -Wno-error=date-time" \
+            CONFIG_RTL8812EU=m
+
+          define Build/Prepare
+          	mkdir -p $(PKG_BUILD_DIR)
+          	cp -r ./src/* $(PKG_BUILD_DIR)/
+          endef
+
+          define Build/Compile
+          	$(MAKE) -C "$(LINUX_DIR)" $(MAKE_OPTS) modules
+          endef
+
+          $(eval $(call KernelPackage,rtl8812eu))
+          EOF
+
+          # Sửa lại dấu Tab chuẩn cho Makefile để tránh lỗi spaces
+          sed -i 's/^  	/\t/' package/rtl8812eu/Makefile
+          sed -i 's/^  	/\t/' package/rtl8812eu/Makefile
+
+          # 3. Cấu hình gói
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
           
-          # 3. Tiến hành biên dịch gói driver
+          # 4. Biên dịch gói
           make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
@@ -61,9 +106,5 @@ jobs:
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
             openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
-            openwrt-sdk/bin/packages/**/rtl8812eu*.apk
-            openwrt-sdk/bin/targets/**/rtl8812eu*.apk
-            openwrt-sdk/bin/packages/**/rtl8812eu*.ipk
-            openwrt-sdk/bin/targets/**/rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
