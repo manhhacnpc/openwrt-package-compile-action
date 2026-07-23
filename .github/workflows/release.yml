@@ -43,13 +43,13 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # Tạo cấu trúc thư mục package
+          # Tạo thư mục mã nguồn
           mkdir -p package/rtl8812eu/src
           
-          # Tải mã nguồn driver trực tiếp bằng cURL (không dùng git clone)
+          # Tải driver nguồn
           curl -sSL https://github.com/svpcom/rtl8812eu/archive/refs/heads/v5.15.0.1.tar.gz | tar -xz -C package/rtl8812eu/src --strip-components=1
 
-          # Tạo Makefile chuẩn cho OpenWrt
+          # Tạo file Makefile OpenWrt chuẩn cấu trúc
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -71,19 +71,24 @@ jobs:
             Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.
           endef
 
-          define Build/Compile
-            $(MAKE) -C "$(LINUX_DIR)" \
-              ARCH="$(LINUX_KARCH)" \
-              CROSS_COMPILE="$(TARGET_CROSS)" \
-              M="$(PKG_BUILD_DIR)" \
-              CONFIG_RTL8812EU=m \
-              USER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN" \
-              modules
-          endef
+          EXTRA_CFLAGS:= \
+            -DCONFIG_LITTLE_ENDIAN \
+            -Wno-error=date-time
+
+          MAKE_OPTS:= \
+            ARCH="$(LINUX_KARCH)" \
+            CROSS_COMPILE="$(TARGET_CROSS)" \
+            M="$(PKG_BUILD_DIR)" \
+            USER_EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
+            CONFIG_RTL8812EU=m
 
           define Build/Prepare
             mkdir -p $(PKG_BUILD_DIR)
             cp -r ./src/* $(PKG_BUILD_DIR)/
+          endef
+
+          define Build/Compile
+            $(MAKE) -C "$(LINUX_DIR)" $(MAKE_OPTS) modules
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
