@@ -22,17 +22,17 @@ jobs:
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tải file sha256sums để lấy CHÍNH XÁC tên file SDK đang có trên server
+          # 1. Tải file sha256sums về
           wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums
           
-          # 2. Lọc ra tên file SDK thực tế
-          SDK_FILENAME=$(grep -oE 'openwrt-sdk-[^"]+\.tar\.xz' sha256sums | head -n 1)
+          # 2. Bóc tách tên file SDK chính xác bằng awk
+          SDK_FILENAME=$(awk '/openwrt-sdk/ {print $2}' sha256sums | sed 's/\*//')
           echo "Found exact SDK file: $SDK_FILENAME"
           
-          # 3. Tải SDK
+          # 3. Tải SDK về
           wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/$SDK_FILENAME"
           
-          # 4. Giải nén SDK
+          # 4. Giải nén
           tar -xf sdk.tar.xz
           rm sdk.tar.xz sha256sums
           mv openwrt-sdk-* openwrt-sdk
