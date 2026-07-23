@@ -34,12 +34,12 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Xóa sạch cache cũ và clone mã nguồn aircrack-ng
+          # 1. Xóa sạch cache và clone đúng mã nguồn svpcom/rtl8812eu
           rm -rf package/rtl8812eu
           mkdir -p package/rtl8812eu
-          git clone --depth 1 https://github.com/aircrack-ng/rtl8812au.git package/rtl8812eu/src
+          git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo OpenWrt Package Makefile khớp chính xác với tên file 8812au.ko được sinh ra
+          # 2. Tạo OpenWrt Package Makefile chuẩn cho svpcom/rtl8812eu
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -51,14 +51,14 @@ jobs:
 
           define KernelPackage/rtl8812eu
             SUBMENU:=Wireless Drivers
-            TITLE:=Realtek RTL8812EU/8812AU Wireless Driver
-            FILES:=$(PKG_BUILD_DIR)/8812au.ko
-            AUTOLOAD:=$(call AutoProbe,8812au)
+            TITLE:=Realtek RTL8812EU Wireless Driver (svpcom)
+            FILES:=$(PKG_BUILD_DIR)/8812eu.ko
+            AUTOLOAD:=$(call AutoProbe,8812eu)
             DEPENDS:=+kmod-cfg80211
           endef
 
           define KernelPackage/rtl8812eu/description
-            Kernel module driver for Realtek RTL8812EU/8812AU USB Wi-Fi adapters.
+            Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters from svpcom.
           endef
 
           define Build/Prepare
@@ -71,6 +71,9 @@ jobs:
           		ARCH="$(LINUX_KARCH)" \
           		CROSS_COMPILE="$(TARGET_CROSS)" \
           		M="$(PKG_BUILD_DIR)" \
+          		CONFIG_PLATFORM_I386_PC=n \
+          		CONFIG_PLATFORM_ARM_RPI=n \
+          		CONFIG_PLATFORM_MIPS_RMI=y \
           		EXTRA_CFLAGS="-w -Wno-error" \
           		modules
           endef
@@ -83,7 +86,7 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 4. Tiến hành biên dịch gói kmod
+          # 4. Tiến hành biên dịch gói kmod với chi tiết log (V=s)
           make package/rtl8812eu/compile V=s
 
           # 5. Gom file `.ipk` vào thư mục release_assets
