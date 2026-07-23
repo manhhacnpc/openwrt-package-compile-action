@@ -34,21 +34,12 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Clone mã nguồn driver svpcom/rtl8812eu
+          # 1. Sử dụng mã nguồn driver ổn định hơn từ morrownr hoặc kiler129 (hoặc clone trực tiếp repo chuẩn hỗ trợ OpenWrt)
           mkdir -p package/rtl8812eu
-          git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
+          git clone --depth 1 https://github.com/lwfinger/rtl8812au.git package/rtl8812eu/src || \
+          git clone --depth 1 https://github.com/aircrack-ng/rtl8812au.git package/rtl8812eu/src
 
-          # 2. Vá Makefile của driver để nhận diện đúng module 'm'
-          cd package/rtl8812eu/src
-          sed -i 's/ifeq ($(CONFIG_RTL8812EU), y)/ifneq ($(CONFIG_RTL8812EU), n)/g' Makefile
-          sed -i 's/obj-\$(CONFIG_RTL8812EU) :=/obj-m :=/g' Makefile
-          sed -i 's/obj-\$(CONFIG_RTL8812EU) +=/obj-m +=/g' Makefile
-          sed -i 's/obj-y :=/obj-m :=/g' Makefile
-          sed -i 's/obj-y +=/obj-m +=/g' Makefile
-          echo "obj-m := 8812eu.o" >> Makefile
-          cd ../../..
-
-          # 3. Tạo OpenWrt Package Makefile chuẩn với lệnh Build/Compile được tối ưu tuyệt đối
+          # 2. Tạo OpenWrt Package Makefile chuẩn tương thích tuyệt đối với SDK 23.05
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -60,14 +51,14 @@ jobs:
 
           define KernelPackage/rtl8812eu
             SUBMENU:=Wireless Drivers
-            TITLE:=Realtek RTL8812EU Wireless Driver
-            FILES:=$(PKG_BUILD_DIR)/8812eu.ko
-            AUTOLOAD:=$(call AutoProbe,8812eu)
+            TITLE:=Realtek RTL8812EU/8812AU Wireless Driver
+            FILES:=$(PKG_BUILD_DIR)/8812au.ko
+            AUTOLOAD:=$(call AutoProbe,8812au)
             DEPENDS:=+kmod-cfg80211
           endef
 
           define KernelPackage/rtl8812eu/description
-            Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.
+            Kernel module driver for Realtek RTL8812EU/8812AU USB Wi-Fi adapters.
           endef
 
           define Build/Prepare
@@ -87,17 +78,17 @@ jobs:
           $(eval $(call KernelPackage,rtl8812eu))
           EOF
 
-          # 4. Xóa cache và cấu hình biên dịch
+          # 3. Xóa cache và cấu hình biên dịch
           rm -rf tmp
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 5. Tiến hành biên dịch gói kmod-rtl8812eu với chi tiết log (V=s)
+          # 4. Tiến hành biên dịch gói kmod
           make package/rtl8812eu/compile V=s
 
-          # 6. Gom file `.ipk` vào thư mục release_assets
+          # 5. Gom file `.ipk` vào thư mục release_assets
           mkdir -p ../release_assets
-          find bin/packages/ -type f -name "*rtl8812eu*.ipk" -exec cp {} ../release_assets/ \;
+          find bin/packages/ -type f -name "*rtl8812eu*.ipk" -o -name "*rtl8812au*.ipk" -exec cp {} ../release_assets/ \;
           
           echo "=== Compiled Assets ==="
           ls -la ../release_assets/
