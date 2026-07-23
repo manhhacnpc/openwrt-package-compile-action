@@ -43,10 +43,8 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Tải trực tiếp package repo đã có sẵn Makefile chuẩn cho rtl8812eu
-          # Dùng curl + tar giải nén để tránh hoàn toàn lỗi git authentication
-          mkdir -p package/rtl8812eu
-          curl -sSL https://github.com/morytyann/OpenWrt-RTL8812EU/archive/refs/heads/main.tar.gz | tar -xz -C package/rtl8812eu --strip-components=1
+          # 1. Git clone trực tiếp package repo rtl8812eu đã có Makefile chuẩn
+          git clone https://github.com/morytyann/OpenWrt-RTL8812EU.git package/rtl8812eu
 
           # 2. Cấu hình chọn gói kmod-rtl8812eu
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
