@@ -18,12 +18,11 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y build-essential clang flex bison gawk gettext \
-            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev zstd xz-utils
+            git libncurses5-dev libssl-dev rsync unzip zlib1g-dev zstd xz-utils python3-setuptools
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tải SDK OpenWrt 25.12.2 (Chip Ramips MT7621)
-          # Lưu ý: Nếu router dùng chip/target khác mt7621, hãy thay đường dẫn bên dưới!
+          # 1. Tải SDK OpenWrt 25.12.2 (MediaTek MT7621)
           wget -O sdk.tar.xz "https://downloads.openwrt.org/releases/25.12.2/targets/ramips/mt7621/openwrt-sdk-25.12.2-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
           
           # 2. Giải nén SDK bằng xz/tar
