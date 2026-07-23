@@ -47,7 +47,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile gọi trực tiếp Makefile của driver
+          # 2. Tạo Makefile chuẩn cho OpenWrt Kernel Module
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
@@ -72,15 +72,16 @@ jobs:
           define Build/Prepare
           \tmkdir -p $(PKG_BUILD_DIR)
           \tcp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
+          \tsed -i "s/obj-y :=/obj-m :=/g" $(PKG_BUILD_DIR)/Makefile
           endef
 
           define Build/Compile
-          \t$(MAKE) -C "$(PKG_BUILD_DIR)" \\
+          \t$(MAKE) -C "$(LINUX_DIR)" \\
           \t\tARCH="$(LINUX_KARCH)" \\
           \t\tCROSS_COMPILE="$(TARGET_CROSS)" \\
-          \t\tKSRC="$(LINUX_DIR)" \\
-          \t\tKDIR="$(LINUX_DIR)" \\
-          \t\tUSER_EXTRA_CFLAGS="-Wno-error -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-unused-result" \\
+          \t\tM="$(PKG_BUILD_DIR)" \\
+          \t\tUSER_EXTRA_CFLAGS="-Wno-error -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-unused-result -Wno-unused-variable -Wno-error=date-time -DCONFIG_LITTLE_ENDIAN" \\
+          \t\tEXTRA_CFLAGS="-Wno-error -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-unused-result -Wno-unused-variable -Wno-error=date-time -DCONFIG_LITTLE_ENDIAN" \\
           \t\tmodules
           endef
 
@@ -98,13 +99,13 @@ jobs:
           make defconfig
 
           # 5. Biên dịch gói kmod-rtl8812eu
-          make package/rtl8812eu/compile V=s -j1
+          make package/rtl8812eu/compile V=s -j$(nproc)
 
-          # 6. Lọc và gom đúng file gói vừa tạo ra thư mục release_assets
+          # 6. Gom đúng file gói rtl8812eu sang thư mục release_assets
           mkdir -p ../release_assets
           find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \) -exec cp {} ../release_assets/ \;
           
-          echo "=== Release Assets Ready ==="
+          echo "=== Compiled Assets ==="
           ls -la ../release_assets/
 
       - name: Upload Package to Release Assets
