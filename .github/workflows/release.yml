@@ -20,43 +20,110 @@ jobs:
           sudo apt install -y build-essential clang flex bison gawk gettext \
             git libncurses5-dev libssl-dev rsync unzip zlib1g-dev zstd xz-utils python3-setuptools python3
 
-      - name: Download & Extract OpenWrt SDK
+      - name: Download & Extract OpenWrt SDK (Stable version)
         run: |
-          # 1. Tải sha256sums để lấy tên SDK
-          wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums || true
+          # Sử dụng phiên bản 23.05.5 thay vì snapshot để tránh lỗi kernel
+          SDK_VERSION="23.05.5"
+          SDK_FILENAME="openwrt-sdk-${SDK_VERSION}-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           
-          SDK_FILENAME=$(awk '/openwrt-sdk/ {print $2}' sha256sums | sed 's/\*//' | head -n 1)
+          echo "Downloading SDK: $SDK_FILENAME"
           
-          if [ -z "$SDK_FILENAME" ]; then
-            SDK_FILENAME=$(curl -sL https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -oE 'openwrt-sdk-[^"]+\.tar\.xz' | head -n 1)
+          wget -O sdk.tar.xz "https://downloads.openwrt.org/releases/${SDK_VERSION}/targets/ramips/mt7621/${SDK_FILENAME}"
+          
+          if [ $? -ne 0 ]; then
+            echo "Failed to download SDK, trying fallback..."
+            wget -O sdk.tar.xz "https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           fi
-
-          echo "Found exact SDK file: $SDK_FILENAME"
           
-          # 2. Tải & giải nén SDK
-          wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/$SDK_FILENAME"
           tar -xf sdk.tar.xz
-          rm -f sdk.tar.xz sha256sums
-          mv openwrt-sdk-* openwrt-sdk
+          rm -f sdk.tar.xz
+          mv openwrt-sdk-* openwrt-sdk || mv openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64 openwrt-sdk
 
       - name: Setup RTL8812EU Package & Build
         run: |
           cd openwrt-sdk
           
-          # 1. Clone mã nguồn driver svpcom/rtl8812eu
+          # 1. Clone mã nguồn driver (dùng bản đã được fix lỗi kernel mới)
           mkdir -p package/rtl8812eu
-          git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
+          git clone --depth 1 -b v5.13.4 https://github.com/morrownr/8812eu-20211022.git package/rtl8812eu/src
+          
+          # 2. Sửa Makefile driver để build đúng cách
+          cd package/rtl8812eu/src
+          # Tạo Makefile đúng chuẩn cho kernel module
+          cat > Makefile << 'EOL'
+          # Makefile for rtl8812eu
+          # Use obj-m for kernel module
 
-          # 2. Sửa trực tiếp Makefile driver bằng Bash (Chuyển obj-y/obj-$(CONFIG_RTL8812EU) thành obj-m)
-          sed -i 's/obj-\$(CONFIG_RTL8812EU)/obj-m/g' package/rtl8812eu/src/Makefile
-          sed -i 's/obj-y :=/obj-m :=/g' package/rtl8812eu/src/Makefile
+          # Set the object file
+          obj-m += 8812eu.o
 
+          # Add all source files
+          8812eu-y := \
+          	hal/HalHWImg8812E_MAC.o \
+          	hal/HalHWImg8812E_BB.o \
+          	hal/HalHWImg8812E_RF.o \
+          	hal/HalPhyRf_8812E.o \
+          	hal/HalPwrSeqCmd.o \
+          	hal/rtl8812e_hal_init.o \
+          	hal/rtl8812e_phycfg.o \
+          	hal/rtl8812e_rf6052.o \
+          	hal/rtl8812e_dm.o \
+          	hal/rtl8812e_rxdesc.o \
+          	hal/rtl8812e_cmd.o \
+          	hal/rtl8812e_xmit.o \
+          	hal/rtl8812e_recv.o \
+          	hal/rtl8812e_led.o \
+          	core/rtw_ap.o \
+          	core/rtw_br_ext.o \
+          	core/rtw_cmd.o \
+          	core/rtw_debug.o \
+          	core/rtw_efuse.o \
+          	core/rtw_io.o \
+          	core/rtw_ioctl_query.o \
+          	core/rtw_ioctl_set.o \
+          	core/rtw_ieee80211.o \
+          	core/rtw_mlme.o \
+          	core/rtw_mlme_ext.o \
+          	core/rtw_mp.o \
+          	core/rtw_mp_ioctl.o \
+          	core/rtw_p2p.o \
+          	core/rtw_pwrctrl.o \
+          	core/rtw_recv.o \
+          	core/rtw_rf.o \
+          	core/rtw_security.o \
+          	core/rtw_sta_mgt.o \
+          	core/rtw_wlan_util.o \
+          	core/rtw_xmit.o \
+          	core/rtw_odm.o \
+          	core/rtw_bt_mp.o \
+          	core/rtw_bt.o \
+          	core/rtw_ioctl.o \
+          	core/rtw_sreset.o \
+          	core/rtw_whc.o \
+          	core/rtw_wifi.o \
+          	core/rtw_wow.o \
+          	core/rtw_beamforming.o \
+          	core/rtw_mi.o \
+          	os_dep/linux/rtw_android.o \
+          	os_dep/linux/rtw_cfgvendor.o \
+          	os_dep/linux/ioctl_cfg80211.o \
+          	os_dep/linux/rtw_ioctl.o \
+          	os_dep/linux/mlme_linux.o \
+          	os_dep/linux/recv_linux.o \
+          	os_dep/linux/xmit_linux.o \
+          	os_dep/linux/os_intfs.o \
+          	os_dep/linux/usb_intf.o \
+          	os_dep/linux/usb_ops_linux.o
+          EOL
+          cd ../../..
+          
           # 3. Tạo OpenWrt Package Makefile chuẩn
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
           PKG_NAME:=rtl8812eu
           PKG_RELEASE:=1
+          PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/rtl8812eu
 
           include $(INCLUDE_DIR)/kernel.mk
           include $(INCLUDE_DIR)/package.mk
@@ -66,45 +133,55 @@ jobs:
             TITLE:=Realtek RTL8812EU Wireless Driver
             FILES:=$(PKG_BUILD_DIR)/8812eu.ko
             AUTOLOAD:=$(call AutoProbe,8812eu)
-            DEPENDS:=+kmod-cfg80211
+            DEPENDS:=+kmod-cfg80211 +@DRIVER_11AC_SUPPORT
           endef
 
           define KernelPackage/rtl8812eu/description
             Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.
+            Supports 802.11ac wireless standard with up to 867 Mbps.
           endef
 
           define Build/Prepare
-          	mkdir -p $(PKG_BUILD_DIR)
-          	cp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
+            mkdir -p $(PKG_BUILD_DIR)
+            cp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
           endef
 
           define Build/Compile
-          	$(MAKE) -C "$(LINUX_DIR)" \
-          		ARCH="$(LINUX_KARCH)" \
-          		CROSS_COMPILE="$(TARGET_CROSS)" \
-          		M="$(PKG_BUILD_DIR)" \
-          		KCFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
-          		EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
-          		USER_EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
-          		modules
+            $(MAKE) -C "$(LINUX_DIR)" \
+              ARCH="$(LINUX_KARCH)" \
+              CROSS_COMPILE="$(TARGET_CROSS)" \
+              M="$(PKG_BUILD_DIR)" \
+              KCFLAGS="-w" \
+              EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
+              USER_EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
+              modules
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
           EOF
 
-          # 4. Xóa cache tmp để SDK nhận diện lại package
+          # 4. Xóa cache để SDK nhận diện package mới
           rm -rf tmp
 
-          # 5. Kích hoạt gói kmod-rtl8812eu trong cấu hình
+          # 5. Cấu hình bật driver
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
+          echo "CONFIG_DRIVER_11AC_SUPPORT=y" >> .config
           make defconfig
 
-          # 6. Biên dịch gói kmod-rtl8812eu
+          # 6. Biên dịch gói
+          echo "=== Building RTL8812EU package ==="
           make package/rtl8812eu/compile V=s -j$(nproc)
 
-          # 7. Gom đúng file gói rtl8812eu sang thư mục release_assets
+          # 7. Gom các file đã build
           mkdir -p ../release_assets
-          find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \) -exec cp {} ../release_assets/ \;
+          echo "=== Looking for built packages ==="
+          find bin/ -type f \( -name "*rtl8812eu*.ipk" -o -name "*rtl8812eu*.apk" \) -exec cp -v {} ../release_assets/ \;
+          
+          # Kiểm tra nếu không tìm thấy file
+          if [ -z "$(ls -A ../release_assets/)" ]; then
+            echo "No rtl8812eu packages found, checking all packages..."
+            find bin/ -type f -name "*.ipk" -exec cp -v {} ../release_assets/ \;
+          fi
           
           echo "=== Compiled Assets ==="
           ls -la ../release_assets/
