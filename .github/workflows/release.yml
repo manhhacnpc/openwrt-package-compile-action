@@ -34,12 +34,12 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Xóa sạch cache và clone đúng mã nguồn svpcom/rtl8812eu
+          # 1. Xóa sạch cache và clone mã nguồn svpcom/rtl8812eu
           rm -rf package/rtl8812eu
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo OpenWrt Package Makefile chuẩn cho svpcom/rtl8812eu
+          # 2. Tạo OpenWrt Package Makefile với cơ chế ép buộc copy file .ko chính xác
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -71,11 +71,10 @@ jobs:
           		ARCH="$(LINUX_KARCH)" \
           		CROSS_COMPILE="$(TARGET_CROSS)" \
           		M="$(PKG_BUILD_DIR)" \
-          		CONFIG_PLATFORM_I386_PC=n \
-          		CONFIG_PLATFORM_ARM_RPI=n \
-          		CONFIG_PLATFORM_MIPS_RMI=y \
           		EXTRA_CFLAGS="-w -Wno-error" \
           		modules
+          	# Ép tìm và copy file .ko vào đúng chỗ nếu nó được sinh ra ở tên khác hoặc thư mục con
+          	find $(PKG_BUILD_DIR) -name "*.ko" -exec cp {} $(PKG_BUILD_DIR)/8812eu.ko \;
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
