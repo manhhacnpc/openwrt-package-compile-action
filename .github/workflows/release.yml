@@ -19,7 +19,7 @@ jobs:
         with:
           package-name: 'kmod-rtl8812eu'
           package-dir: 'https://github.com/svpcom/rtl8812eu-openwrt.git'
-          sdk-url-override: 'https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz'
+          sdk-url-override: 'https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz'
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
