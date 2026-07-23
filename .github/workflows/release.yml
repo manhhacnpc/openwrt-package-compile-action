@@ -43,14 +43,13 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # Tạo thư mục package rtl8812eu
-          mkdir -p package/rtl8812eu
+          # Tạo cấu trúc thư mục package
+          mkdir -p package/rtl8812eu/src
           
-          # Clone repo driver RTL8812EU chính thức cực kỳ uy tín của morrownr
-          git clone --depth 1 https://github.com/morrownr/8812eu-20210820.p2p.git package/rtl8812eu/src || \
-          git clone --depth 1 https://github.com/morrownr/8812eu-20210820.git package/rtl8812eu/src
+          # Tải mã nguồn driver trực tiếp bằng cURL (không dùng git clone)
+          curl -sSL https://github.com/svpcom/rtl8812eu/archive/refs/heads/v5.15.0.1.tar.gz | tar -xz -C package/rtl8812eu/src --strip-components=1
 
-          # Tạo file Makefile OpenWrt chuẩn
+          # Tạo Makefile chuẩn cho OpenWrt
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
