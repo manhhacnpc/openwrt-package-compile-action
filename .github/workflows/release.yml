@@ -98,14 +98,16 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 5. Biên dịch toàn bộ gói đã chọn (.config)
+          # 5. Biên dịch gói
           make package/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            openwrt-sdk/bin/**/*.apk
-            openwrt-sdk/bin/**/*.ipk
+            openwrt-sdk/bin/**/kmod-rtl8812eu*.apk
+            openwrt-sdk/bin/**/kmod-rtl8812eu*.ipk
+            openwrt-sdk/bin/**/rtl8812eu*.apk
+            openwrt-sdk/bin/**/rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
