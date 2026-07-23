@@ -43,11 +43,11 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Clone mã nguồn driver svpcom/rtl8812eu
+          # 1. Clone driver svpcom/rtl8812eu
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn dùng Python để bảo đảm đúng ký tự TAB (\t)
+          # 2. Tạo Makefile chuẩn bằng Python (giữ nguyên ký tự TAB)
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
@@ -90,23 +90,21 @@ jobs:
               f.write(content)
           '
 
-          # 3. Xóa cache cũ của SDK để ép quét lại thư mục package/
+          # 3. Xóa cache tmp để SDK nhận diện package/rtl8812eu
           rm -rf tmp
 
-          # 4. Cấu hình bật gói kmod-rtl8812eu
-          echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
+          # 4. Cấu hình SDK chuẩn và thêm gói kmod-rtl8812eu (dùng >> để nối file)
           make defconfig
-          
-          # 5. Biên dịch toàn bộ gói đã chọn trong .config
-          make package/compile V=s -j$(nproc)
+          echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
+
+          # 5. Đích danh biên dịch gói rtl8812eu
+          make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.apk
-            openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
-            openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
-            openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
+            openwrt-sdk/bin/**/*.apk
+            openwrt-sdk/bin/**/*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
