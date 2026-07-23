@@ -43,13 +43,13 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Tạo thư mục package
+          # 1. Tạo thư mục chứa package
           mkdir -p package/rtl8812eu/src
           
-          # 2. Tải mã nguồn driver
+          # 2. Tải chính xác driver svpcom/rtl8812eu v5.15.0.1
           curl -sSL https://github.com/svpcom/rtl8812eu/archive/refs/heads/v5.15.0.1.tar.gz | tar -xz -C package/rtl8812eu/src --strip-components=1
 
-          # 3. Tạo Makefile chuẩn
+          # 3. Tạo Makefile chuẩn dành cho Kernel Module
           printf '%s\n' \
           'include $(TOPDIR)/rules.mk' \
           '' \
@@ -88,16 +88,12 @@ jobs:
           '' \
           '$(eval $(call KernelPackage,rtl8812eu))' > package/rtl8812eu/Makefile
 
-          # 4. Cập nhật feeds
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-          
-          # 5. Bật cấu hình gói kmod-rtl8812eu
-          echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
+          # 4. Ép cấu hình chọn gói kmod-rtl8812eu trực tiếp vào .config
+          echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
           
-          # 6. Biên dịch gói với tên kmod-rtl8812eu chính xác
-          make package/kmod-rtl8812eu/compile V=s -j$(nproc)
+          # 5. Tiến hành biên dịch gói package/rtl8812eu
+          make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
@@ -107,5 +103,9 @@ jobs:
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
             openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
+            openwrt-sdk/bin/packages/**/rtl8812eu*.apk
+            openwrt-sdk/bin/targets/**/rtl8812eu*.apk
+            openwrt-sdk/bin/packages/**/rtl8812eu*.ipk
+            openwrt-sdk/bin/targets/**/rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
