@@ -39,7 +39,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo OpenWrt Package Makefile với cơ chế ép buộc copy file .ko chính xác
+          # 2. Tạo OpenWrt Package Makefile với cơ chế định nghĩa module chuẩn xác
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -73,8 +73,10 @@ jobs:
           		M="$(PKG_BUILD_DIR)" \
           		EXTRA_CFLAGS="-w -Wno-error" \
           		modules
-          	# Ép tìm và copy file .ko vào đúng chỗ nếu nó được sinh ra ở tên khác hoặc thư mục con
-          	find $(PKG_BUILD_DIR) -name "*.ko" -exec cp {} $(PKG_BUILD_DIR)/8812eu.ko \;
+          	# Tự động đổi tên/copy file .ko bất kể tên sinh ra là gì vào đúng đích 8812eu.ko
+          	for f in $(PKG_BUILD_DIR)/*.ko; do \
+          		[ -f "$$f" ] && cp "$$f" $(PKG_BUILD_DIR)/8812eu.ko; \
+          	done
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
