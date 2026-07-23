@@ -47,7 +47,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module
+          # 2. Tạo Makefile gọi trực tiếp Makefile của driver
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
@@ -75,11 +75,12 @@ jobs:
           endef
 
           define Build/Compile
-          \t$(MAKE) -C "$(LINUX_DIR)" \\
+          \t$(MAKE) -C "$(PKG_BUILD_DIR)" \\
           \t\tARCH="$(LINUX_KARCH)" \\
           \t\tCROSS_COMPILE="$(TARGET_CROSS)" \\
-          \t\tM="$(PKG_BUILD_DIR)" \\
-          \t\tUSER_EXTRA_CFLAGS="-Wno-error=date-time -Wno-error=incompatible-pointer-types -Wno-error=implicit-function-declaration" \\
+          \t\tKSRC="$(LINUX_DIR)" \\
+          \t\tKDIR="$(LINUX_DIR)" \\
+          \t\tUSER_EXTRA_CFLAGS="-Wno-error -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-unused-result" \\
           \t\tmodules
           endef
 
@@ -89,7 +90,7 @@ jobs:
               f.write(content)
           '
 
-          # 3. Xóa cache tmp để SDK nhận diện lại package/rtl8812eu
+          # 3. Xóa cache tmp để SDK nhận diện lại package
           rm -rf tmp
 
           # 4. Kích hoạt gói kmod-rtl8812eu trong cấu hình
@@ -97,19 +98,18 @@ jobs:
           make defconfig
 
           # 5. Biên dịch gói kmod-rtl8812eu
-          make package/rtl8812eu/compile V=s -j$(nproc)
+          make package/rtl8812eu/compile V=s -j1
 
-          # 6. Kiểm tra các file gói đã được đóng gói thành công
-          echo "=== List of compiled package files ==="
-          find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \)
+          # 6. Lọc và gom đúng file gói vừa tạo ra thư mục release_assets
+          mkdir -p ../release_assets
+          find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \) -exec cp {} ../release_assets/ \;
+          
+          echo "=== Release Assets Ready ==="
+          ls -la ../release_assets/
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            openwrt-sdk/bin/**/kmod-rtl8812eu*.apk
-            openwrt-sdk/bin/**/kmod-rtl8812eu*.ipk
-            openwrt-sdk/bin/**/rtl8812eu*.apk
-            openwrt-sdk/bin/**/rtl8812eu*.ipk
+          files: release_assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
