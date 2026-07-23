@@ -22,7 +22,7 @@ jobs:
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tải sha256sums để lấy tên SDK chính xác
+          # 1. Tải sha256sums để lấy tên SDK
           wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums || true
           
           SDK_FILENAME=$(awk '/openwrt-sdk/ {print $2}' sha256sums | sed 's/\*//' | head -n 1)
@@ -39,14 +39,57 @@ jobs:
           rm -f sdk.tar.xz sha256sums
           mv openwrt-sdk-* openwrt-sdk
 
-      - name: Build RTL8812EU Package
+      - name: Setup RTL8812EU Package & Build
         run: |
           cd openwrt-sdk
           
-          # Clone driver RTL8812EU dành riêng cho OpenWrt (có OpenWrt Makefile chuẩn)
-          git clone https://github.com/clnhub/rtl8812eu-openwrt.git package/rtl8812eu || \
-          git clone https://github.com/morytyann/OpenWrt-RTL8812EU.git package/rtl8812eu
+          # Tạo thư mục package rtl8812eu
+          mkdir -p package/rtl8812eu
           
+          # Clone repo driver RTL8812EU chính thức cực kỳ uy tín của morrownr
+          git clone --depth 1 https://github.com/morrownr/8812eu-20210820.p2p.git package/rtl8812eu/src || \
+          git clone --depth 1 https://github.com/morrownr/8812eu-20210820.git package/rtl8812eu/src
+
+          # Tạo file Makefile OpenWrt chuẩn
+          cat << 'EOF' > package/rtl8812eu/Makefile
+          include $(TOPDIR)/rules.mk
+
+          PKG_NAME:=rtl8812eu
+          PKG_VERSION:=5.15.0.1
+          PKG_RELEASE:=1
+
+          include $(INCLUDE_DIR)/kernel.mk
+
+          define KernelPackage/rtl8812eu
+            SUBMENU:=Wireless Drivers
+            TITLE:=Realtek RTL8812EU Wireless Driver
+            FILES:=$(PKG_BUILD_DIR)/rtl8812eu.ko
+            AUTOLOAD:=$(call AutoProbe,rtl8812eu)
+            DEPENDS:=+kmod-cfg80211
+          endef
+
+          define KernelPackage/rtl8812eu/description
+            Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.
+          endef
+
+          define Build/Compile
+            $(MAKE) -C "$(LINUX_DIR)" \
+              ARCH="$(LINUX_KARCH)" \
+              CROSS_COMPILE="$(TARGET_CROSS)" \
+              M="$(PKG_BUILD_DIR)" \
+              CONFIG_RTL8812EU=m \
+              USER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN" \
+              modules
+          endef
+
+          define Build/Prepare
+            mkdir -p $(PKG_BUILD_DIR)
+            cp -r ./src/* $(PKG_BUILD_DIR)/
+          endef
+
+          $(eval $(call KernelPackage,rtl8812eu))
+          EOF
+
           # Cập nhật feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
@@ -66,9 +109,5 @@ jobs:
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
             openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
-            openwrt-sdk/bin/packages/**/rtl8812eu*.apk
-            openwrt-sdk/bin/targets/**/rtl8812eu*.apk
-            openwrt-sdk/bin/packages/**/rtl8812eu*.ipk
-            openwrt-sdk/bin/targets/**/rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
