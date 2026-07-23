@@ -47,9 +47,13 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module
-          python3 -c '
-          content = """include $(TOPDIR)/rules.mk
+          # 2. Sửa trực tiếp Makefile driver bằng Bash (Chuyển obj-y/obj-$(CONFIG_RTL8812EU) thành obj-m)
+          sed -i 's/obj-\$(CONFIG_RTL8812EU)/obj-m/g' package/rtl8812eu/src/Makefile
+          sed -i 's/obj-y :=/obj-m :=/g' package/rtl8812eu/src/Makefile
+
+          # 3. Tạo OpenWrt Package Makefile chuẩn
+          cat << 'EOF' > package/rtl8812eu/Makefile
+          include $(TOPDIR)/rules.mk
 
           PKG_NAME:=rtl8812eu
           PKG_RELEASE:=1
@@ -70,38 +74,35 @@ jobs:
           endef
 
           define Build/Prepare
-          \tmkdir -p $(PKG_BUILD_DIR)
-          \tcp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
-          \techo "obj-m += 8812eu.o" >> $(PKG_BUILD_DIR)/Makefile
+          	mkdir -p $(PKG_BUILD_DIR)
+          	cp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
           endef
 
           define Build/Compile
-          \t$(MAKE) -C "$(LINUX_DIR)" \\
-          \t\tARCH="$(LINUX_KARCH)" \\
-          \t\tCROSS_COMPILE="$(TARGET_CROSS)" \\
-          \t\tM="$(PKG_BUILD_DIR)" \\
-          \t\tUSER_EXTRA_CFLAGS="-Wno-error -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-unused-result -Wno-unused-variable -Wno-error=date-time -DCONFIG_LITTLE_ENDIAN" \\
-          \t\tEXTRA_CFLAGS="-Wno-error -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-unused-result -Wno-unused-variable -Wno-error=date-time -DCONFIG_LITTLE_ENDIAN" \\
-          \t\tmodules
+          	$(MAKE) -C "$(LINUX_DIR)" \
+          		ARCH="$(LINUX_KARCH)" \
+          		CROSS_COMPILE="$(TARGET_CROSS)" \
+          		M="$(PKG_BUILD_DIR)" \
+          		KCFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
+          		EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
+          		USER_EXTRA_CFLAGS="-w -DCONFIG_LITTLE_ENDIAN" \
+          		modules
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
-          """
-          with open("package/rtl8812eu/Makefile", "w") as f:
-              f.write(content)
-          '
+          EOF
 
-          # 3. Xóa cache tmp để SDK nhận diện lại package
+          # 4. Xóa cache tmp để SDK nhận diện lại package
           rm -rf tmp
 
-          # 4. Kích hoạt gói kmod-rtl8812eu trong cấu hình
+          # 5. Kích hoạt gói kmod-rtl8812eu trong cấu hình
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 5. Biên dịch gói kmod-rtl8812eu
+          # 6. Biên dịch gói kmod-rtl8812eu
           make package/rtl8812eu/compile V=s -j$(nproc)
 
-          # 6. Gom đúng file gói rtl8812eu sang thư mục release_assets
+          # 7. Gom đúng file gói rtl8812eu sang thư mục release_assets
           mkdir -p ../release_assets
           find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \) -exec cp {} ../release_assets/ \;
           
