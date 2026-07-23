@@ -18,36 +18,43 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y build-essential clang flex bison gawk gettext \
-            git libncurses5-dev libssl-dev rsync unzip zlib1g-dev zstd xz-utils python3-setuptools
+            git libncurses5-dev libssl-dev rsync unzip zlib1g-dev zstd xz-utils python3-setuptools jq
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Bóc tách chính xác tên file SDK trong danh sách Snapshots
-          SDK_FILENAME=$(curl -sL https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -oE 'openwrt-sdk-[a-zA-Z0-9_.-]+\.tar\.xz' | head -n 1)
-          echo "SDK File: $SDK_FILENAME"
+          # 1. Dùng API chính thức của OpenWrt để lấy link SDK Snapshots cho ramips/mt7621
+          SDK_URL=$(curl -s https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/profiles.json | jq -r '.sdk_url // empty')
           
-          # 2. Tải SDK
-          wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/$SDK_FILENAME"
+          # Nếu API trống, tự động fallback về link chuẩn từ máy chủ OpenWrt
+          if [ -z "$SDK_URL" ]; then
+            SDK_URL=$(curl -sL https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -oE 'https://[^"]+openwrt-sdk[^"]+\.tar\.xz' | head -n 1)
+          fi
           
-          # 3. Giải nén
+          # Nếu vẫn chưa lấy được, dùng link trực tiếp
+          if [ -z "$SDK_URL" ]; then
+            SDK_URL="https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          fi
+          
+          echo "Target SDK URL: $SDK_URL"
+          wget -O sdk.tar.xz "$SDK_URL"
+          
+          # 2. Giải nén SDK
           tar -xf sdk.tar.xz
           rm sdk.tar.xz
-          
-          # 4. Đổi tên thư mục SDK
           mv openwrt-sdk-* openwrt-sdk
 
       - name: Build RTL8812EU Package
         run: |
           cd openwrt-sdk
           
-          # Clone driver rtl8812eu vào thư mục package
+          # Clone driver rtl8812eu
           git clone https://github.com/svpcom/rtl8812eu-openwrt.git package/rtl8812eu
           
           # Cập nhật feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Cấu hình và compile package kmod-rtl8812eu
+          # Cấu hình và biên dịch
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
           make defconfig
           make package/rtl8812eu/compile V=s -j$(nproc)
