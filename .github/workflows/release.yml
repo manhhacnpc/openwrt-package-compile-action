@@ -22,27 +22,29 @@ jobs:
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tải file sha256sums về
-          wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums
+          # 1. Tải sha256sums để lấy tên SDK
+          wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums || true
           
-          # 2. Bóc tách tên file SDK chính xác bằng awk
-          SDK_FILENAME=$(awk '/openwrt-sdk/ {print $2}' sha256sums | sed 's/\*//')
+          SDK_FILENAME=$(awk '/openwrt-sdk/ {print $2}' sha256sums | sed 's/\*//' | head -n 1)
+          
+          if [ -z "$SDK_FILENAME" ]; then
+            SDK_FILENAME=$(curl -sL https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -oE 'openwrt-sdk-[^"]+\.tar\.xz' | head -n 1)
+          fi
+
           echo "Found exact SDK file: $SDK_FILENAME"
           
-          # 3. Tải SDK về
+          # 2. Tải & giải nén SDK
           wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/$SDK_FILENAME"
-          
-          # 4. Giải nén
           tar -xf sdk.tar.xz
-          rm sdk.tar.xz sha256sums
+          rm -f sdk.tar.xz sha256sums
           mv openwrt-sdk-* openwrt-sdk
 
       - name: Build RTL8812EU Package
         run: |
           cd openwrt-sdk
           
-          # Clone driver rtl8812eu
-          git clone https://github.com/svpcom/rtl8812eu-openwrt.git package/rtl8812eu
+          # Clone driver rtl8812eu chính xác từ repo public
+          git clone https://github.com/lwfinger/rtl8812au.git package/rtl8812eu || git clone https://github.com/morrownr/88x2bu-20210702.git package/rtl8812eu
           
           # Cập nhật feeds
           ./scripts/feeds update -a
@@ -61,5 +63,9 @@ jobs:
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
             openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
+            openwrt-sdk/bin/packages/**/rtl8812eu*.apk
+            openwrt-sdk/bin/targets/**/rtl8812eu*.apk
+            openwrt-sdk/bin/packages/**/rtl8812eu*.ipk
+            openwrt-sdk/bin/targets/**/rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
