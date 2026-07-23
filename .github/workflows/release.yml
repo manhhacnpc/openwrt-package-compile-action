@@ -47,7 +47,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn cho OpenWrt Kernel Module
+          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
@@ -72,7 +72,7 @@ jobs:
           define Build/Prepare
           \tmkdir -p $(PKG_BUILD_DIR)
           \tcp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
-          \tsed -i "s/obj-y :=/obj-m :=/g" $(PKG_BUILD_DIR)/Makefile
+          \techo "obj-m += 8812eu.o" >> $(PKG_BUILD_DIR)/Makefile
           endef
 
           define Build/Compile
