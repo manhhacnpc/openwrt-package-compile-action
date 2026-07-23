@@ -22,18 +22,18 @@ jobs:
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tự động lấy tên file SDK mới nhất trong mục Snapshots của MT7621
-          SDK_FILENAME=$(curl -s https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -o 'openwrt-sdk-ramips-mt7621_[^"]*tar.xz' | head -n 1)
-          echo "Found SDK: $SDK_FILENAME"
+          # 1. Bóc tách chính xác tên file SDK trong danh sách Snapshots
+          SDK_FILENAME=$(curl -sL https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -oE 'openwrt-sdk-[a-zA-Z0-9_.-]+\.tar\.xz' | head -n 1)
+          echo "SDK File: $SDK_FILENAME"
           
-          # 2. Tải SDK về máy chủ
+          # 2. Tải SDK
           wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/$SDK_FILENAME"
           
-          # 3. Giải nén SDK
+          # 3. Giải nén
           tar -xf sdk.tar.xz
           rm sdk.tar.xz
           
-          # 4. Đổi tên thư mục SDK cho gọn
+          # 4. Đổi tên thư mục SDK
           mv openwrt-sdk-* openwrt-sdk
 
       - name: Build RTL8812EU Package
