@@ -18,29 +18,23 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y build-essential clang flex bison gawk gettext \
-            git libncurses5-dev libssl-dev rsync unzip zlib1g-dev zstd xz-utils python3-setuptools jq
+            git libncurses5-dev libssl-dev rsync unzip zlib1g-dev zstd xz-utils python3-setuptools
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Dùng API chính thức của OpenWrt để lấy link SDK Snapshots cho ramips/mt7621
-          SDK_URL=$(curl -s https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/profiles.json | jq -r '.sdk_url // empty')
+          # 1. Tải file sha256sums để lấy CHÍNH XÁC tên file SDK đang có trên server
+          wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums
           
-          # Nếu API trống, tự động fallback về link chuẩn từ máy chủ OpenWrt
-          if [ -z "$SDK_URL" ]; then
-            SDK_URL=$(curl -sL https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/ | grep -oE 'https://[^"]+openwrt-sdk[^"]+\.tar\.xz' | head -n 1)
-          fi
+          # 2. Lọc ra tên file SDK thực tế
+          SDK_FILENAME=$(grep -oE 'openwrt-sdk-[^"]+\.tar\.xz' sha256sums | head -n 1)
+          echo "Found exact SDK file: $SDK_FILENAME"
           
-          # Nếu vẫn chưa lấy được, dùng link trực tiếp
-          if [ -z "$SDK_URL" ]; then
-            SDK_URL="https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
-          fi
+          # 3. Tải SDK
+          wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/$SDK_FILENAME"
           
-          echo "Target SDK URL: $SDK_URL"
-          wget -O sdk.tar.xz "$SDK_URL"
-          
-          # 2. Giải nén SDK
+          # 4. Giải nén SDK
           tar -xf sdk.tar.xz
-          rm sdk.tar.xz
+          rm sdk.tar.xz sha256sums
           mv openwrt-sdk-* openwrt-sdk
 
       - name: Build RTL8812EU Package
@@ -54,7 +48,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Cấu hình và biên dịch
+          # Cấu hình và compile package kmod-rtl8812eu
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
           make defconfig
           make package/rtl8812eu/compile V=s -j$(nproc)
