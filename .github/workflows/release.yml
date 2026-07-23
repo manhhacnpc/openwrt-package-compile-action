@@ -22,14 +22,14 @@ jobs:
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tải SDK OpenWrt 25.12.2 (MediaTek MT7621)
-          wget -O sdk.tar.xz "https://downloads.openwrt.org/releases/25.12.2/targets/ramips/mt7621/openwrt-sdk-25.12.2-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          # Tải SDK Snapshots chuẩn cho ramips/mt7621
+          wget -O sdk.tar.xz "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
           
-          # 2. Giải nén SDK bằng xz/tar
+          # Giải nén
           tar -xf sdk.tar.xz
           rm sdk.tar.xz
           
-          # 3. Đổi tên thư mục SDK
+          # Đổi tên thư mục SDK cho gọn
           mv openwrt-sdk-* openwrt-sdk
 
       - name: Build RTL8812EU Package
@@ -43,7 +43,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Cấu hình build package kmod-rtl8812eu
+          # Cấu hình và compile package kmod-rtl8812eu
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
           make defconfig
           make package/rtl8812eu/compile V=s -j$(nproc)
