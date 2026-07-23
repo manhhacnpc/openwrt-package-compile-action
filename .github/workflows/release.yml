@@ -43,56 +43,16 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Tạo thư mục chứa package
-          mkdir -p package/rtl8812eu/src
-          
-          # 2. Tải chính xác driver svpcom/rtl8812eu v5.15.0.1
-          curl -sSL https://github.com/svpcom/rtl8812eu/archive/refs/heads/v5.15.0.1.tar.gz | tar -xz -C package/rtl8812eu/src --strip-components=1
+          # 1. Tải trực tiếp package repo đã có sẵn Makefile chuẩn cho rtl8812eu
+          # Dùng curl + tar giải nén để tránh hoàn toàn lỗi git authentication
+          mkdir -p package/rtl8812eu
+          curl -sSL https://github.com/morytyann/OpenWrt-RTL8812EU/archive/refs/heads/main.tar.gz | tar -xz -C package/rtl8812eu --strip-components=1
 
-          # 3. Tạo Makefile chuẩn dành cho Kernel Module
-          printf '%s\n' \
-          'include $(TOPDIR)/rules.mk' \
-          '' \
-          'PKG_NAME:=rtl8812eu' \
-          'PKG_VERSION:=5.15.0.1' \
-          'PKG_RELEASE:=1' \
-          '' \
-          'include $(INCLUDE_DIR)/kernel.mk' \
-          '' \
-          'define KernelPackage/rtl8812eu' \
-          '  SUBMENU:=Wireless Drivers' \
-          '  TITLE:=Realtek RTL8812EU Wireless Driver' \
-          '  FILES:=$(PKG_BUILD_DIR)/rtl8812eu.ko' \
-          '  AUTOLOAD:=$(call AutoProbe,rtl8812eu)' \
-          '  DEPENDS:=+kmod-cfg80211' \
-          'endef' \
-          '' \
-          'define KernelPackage/rtl8812eu/description' \
-          '  Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.' \
-          'endef' \
-          '' \
-          'define Build/Prepare' \
-          '	mkdir -p $(PKG_BUILD_DIR)' \
-          '	cp -r ./src/* $(PKG_BUILD_DIR)/' \
-          'endef' \
-          '' \
-          'define Build/Compile' \
-          '	$(MAKE) -C "$(LINUX_DIR)" \' \
-          '		ARCH="$(LINUX_KARCH)" \' \
-          '		CROSS_COMPILE="$(TARGET_CROSS)" \' \
-          '		M="$(PKG_BUILD_DIR)" \' \
-          '		CONFIG_RTL8812EU=m \' \
-          '		USER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN -Wno-error=date-time" \' \
-          '		modules' \
-          'endef' \
-          '' \
-          '$(eval $(call KernelPackage,rtl8812eu))' > package/rtl8812eu/Makefile
-
-          # 4. Ép cấu hình chọn gói kmod-rtl8812eu trực tiếp vào .config
+          # 2. Cấu hình chọn gói kmod-rtl8812eu
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
           
-          # 5. Tiến hành biên dịch gói package/rtl8812eu
+          # 3. Tiến hành biên dịch gói driver
           make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
