@@ -47,7 +47,7 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn OpenWrt
+          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
@@ -79,10 +79,8 @@ jobs:
           \t\tARCH="$(LINUX_KARCH)" \\
           \t\tCROSS_COMPILE="$(TARGET_CROSS)" \\
           \t\tM="$(PKG_BUILD_DIR)" \\
-          \t\tUSER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN -Wno-error=date-time" \\
-          \t\tCONFIG_RTL8812EU=m \\
+          \t\tUSER_EXTRA_CFLAGS="-Wno-error=date-time -Wno-error=incompatible-pointer-types -Wno-error=implicit-function-declaration" \\
           \t\tmodules
-          \tfind $(PKG_BUILD_DIR) -name "*.ko" -exec cp {} $(PKG_BUILD_DIR)/8812eu.ko \\;
           endef
 
           $(eval $(call KernelPackage,rtl8812eu))
