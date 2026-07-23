@@ -22,7 +22,7 @@ jobs:
 
       - name: Download & Extract OpenWrt SDK
         run: |
-          # 1. Tải sha256sums để lấy tên SDK
+          # 1. Tải sha256sums để lấy tên SDK chính xác
           wget -q https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/sha256sums -O sha256sums || true
           
           SDK_FILENAME=$(awk '/openwrt-sdk/ {print $2}' sha256sums | sed 's/\*//' | head -n 1)
@@ -43,16 +43,19 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # Clone driver rtl8812eu chính xác từ repo public
-          git clone https://github.com/lwfinger/rtl8812au.git package/rtl8812eu || git clone https://github.com/morrownr/88x2bu-20210702.git package/rtl8812eu
+          # Clone driver RTL8812EU dành riêng cho OpenWrt (có OpenWrt Makefile chuẩn)
+          git clone https://github.com/clnhub/rtl8812eu-openwrt.git package/rtl8812eu || \
+          git clone https://github.com/morytyann/OpenWrt-RTL8812EU.git package/rtl8812eu
           
           # Cập nhật feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Cấu hình và compile package kmod-rtl8812eu
+          # Cấu hình gói kmod-rtl8812eu
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
           make defconfig
+          
+          # Biên dịch gói
           make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
