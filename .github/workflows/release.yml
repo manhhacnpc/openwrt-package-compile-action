@@ -43,19 +43,61 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # Thêm feed chứa driver rtl8812eu chính thức đã test sẵn
-          echo "src-git rtl8812eu https://github.com/morytyann/OpenWrt-RTL8812EU.git" >> feeds.conf.default
+          # 1. Tạo thư mục package
+          mkdir -p package/rtl8812eu/src
           
-          # Cập nhật & cài đặt feeds
+          # 2. Tải mã nguồn driver
+          curl -sSL https://github.com/svpcom/rtl8812eu/archive/refs/heads/v5.15.0.1.tar.gz | tar -xz -C package/rtl8812eu/src --strip-components=1
+
+          # 3. Tạo Makefile dùng printf để bảo đảm đúng dấu TAB (\t)
+          printf '%s\n' \
+          'include $(TOPDIR)/rules.mk' \
+          '' \
+          'PKG_NAME:=rtl8812eu' \
+          'PKG_VERSION:=5.15.0.1' \
+          'PKG_RELEASE:=1' \
+          '' \
+          'include $(INCLUDE_DIR)/kernel.mk' \
+          '' \
+          'define KernelPackage/rtl8812eu' \
+          '  SUBMENU:=Wireless Drivers' \
+          '  TITLE:=Realtek RTL8812EU Wireless Driver' \
+          '  FILES:=$(PKG_BUILD_DIR)/rtl8812eu.ko' \
+          '  AUTOLOAD:=$(call AutoProbe,rtl8812eu)' \
+          '  DEPENDS:=+kmod-cfg80211' \
+          'endef' \
+          '' \
+          'define KernelPackage/rtl8812eu/description' \
+          '  Kernel module driver for Realtek RTL8812EU USB Wi-Fi adapters.' \
+          'endef' \
+          '' \
+          'define Build/Prepare' \
+          '	mkdir -p $(PKG_BUILD_DIR)' \
+          '	cp -r ./src/* $(PKG_BUILD_DIR)/' \
+          'endef' \
+          '' \
+          'define Build/Compile' \
+          '	$(MAKE) -C "$(LINUX_DIR)" \' \
+          '		ARCH="$(LINUX_KARCH)" \' \
+          '		CROSS_COMPILE="$(TARGET_CROSS)" \' \
+          '		M="$(PKG_BUILD_DIR)" \' \
+          '		CONFIG_RTL8812EU=m \' \
+          '		USER_EXTRA_CFLAGS="-DCONFIG_LITTLE_ENDIAN -Wno-error=date-time" \' \
+          '		modules' \
+          'endef' \
+          '' \
+          '$(eval $(call KernelPackage,rtl8812eu))' > package/rtl8812eu/Makefile
+
+          # 4. Cập nhật feeds chuẩn của SDK
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           
-          # Chọn gói kmod-rtl8812eu
+          # 5. Bật gói driver trong cấu hình
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" > .config
           make defconfig
           
-          # Biên dịch gói driver
-          make package/rtl8812eu/compile V=s -j$(nproc) || make package/kmod-rtl8812eu/compile V=s -j$(nproc)
+          # 6. Biên dịch gói
+          make package/rtl8812eu/compile V=s -j$(nproc)
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
@@ -65,9 +107,5 @@ jobs:
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.apk
             openwrt-sdk/bin/packages/**/kmod-rtl8812eu*.ipk
             openwrt-sdk/bin/targets/**/kmod-rtl8812eu*.ipk
-            openwrt-sdk/bin/packages/**/rtl8812eu*.apk
-            openwrt-sdk/bin/targets/**/rtl8812eu*.apk
-            openwrt-sdk/bin/packages/**/rtl8812eu*.ipk
-            openwrt-sdk/bin/targets/**/rtl8812eu*.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
