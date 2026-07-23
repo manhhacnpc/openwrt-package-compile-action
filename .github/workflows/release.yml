@@ -48,7 +48,7 @@ jobs:
           echo "obj-m := 8812eu.o" >> Makefile
           cd ../../..
 
-          # 3. Tạo OpenWrt Package Makefile chuẩn, bổ sung cờ ép bỏ qua lỗi cảnh báo C (-w và -Wno-error)
+          # 3. Tạo OpenWrt Package Makefile chuẩn với lệnh Build/Compile được tối ưu tuyệt đối
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -76,12 +76,11 @@ jobs:
           endef
 
           define Build/Compile
-          	$(MAKE) -C "$(LINUX_DIR)" \
+          	+$(MAKE) $(PKG_JOBS) -C "$(LINUX_DIR)" \
           		ARCH="$(LINUX_KARCH)" \
           		CROSS_COMPILE="$(TARGET_CROSS)" \
           		M="$(PKG_BUILD_DIR)" \
-          		KCFLAGS="-w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -DCONFIG_LITTLE_ENDIAN" \
-          		EXTRA_CFLAGS="-w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -DCONFIG_LITTLE_ENDIAN" \
+          		EXTRA_CFLAGS="-w -Wno-error" \
           		modules
           endef
 
@@ -93,8 +92,8 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 5. Tiến hành biên dịch gói kmod-rtl8812eu
-          make package/rtl8812eu/compile V=s -j$(nproc)
+          # 5. Tiến hành biên dịch gói kmod-rtl8812eu với chi tiết log (V=s)
+          make package/rtl8812eu/compile V=s
 
           # 6. Gom file `.ipk` vào thư mục release_assets
           mkdir -p ../release_assets
