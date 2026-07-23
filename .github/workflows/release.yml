@@ -47,15 +47,15 @@ jobs:
           mkdir -p package/rtl8812eu
           git clone --depth 1 https://github.com/svpcom/rtl8812eu.git package/rtl8812eu/src
 
-          # 2. Tạo Makefile chuẩn bằng Python (đảm bảo đúng ký tự TAB)
+          # 2. Tạo Makefile chuẩn OpenWrt Kernel Module
           python3 -c '
           content = """include $(TOPDIR)/rules.mk
 
           PKG_NAME:=rtl8812eu
-          PKG_VERSION:=5.15.0.1
           PKG_RELEASE:=1
 
           include $(INCLUDE_DIR)/kernel.mk
+          include $(INCLUDE_DIR)/package.mk
 
           define KernelPackage/rtl8812eu
             SUBMENU:=Wireless Drivers
@@ -71,7 +71,7 @@ jobs:
 
           define Build/Prepare
           \tmkdir -p $(PKG_BUILD_DIR)
-          \tcp -r ./src/* $(PKG_BUILD_DIR)/
+          \tcp -r $(TOPDIR)/package/rtl8812eu/src/* $(PKG_BUILD_DIR)/
           endef
 
           define Build/Compile
@@ -90,16 +90,19 @@ jobs:
               f.write(content)
           '
 
-          # 3. Xóa cache cũ của SDK để ép quét lại danh sách gói
+          # 3. Xóa cache tmp để SDK nhận diện package/rtl8812eu
           rm -rf tmp
 
-          # 4. Kích hoạt gói kmod-rtl8812eu và cập nhật cấu hình SDK
-          make defconfig
+          # 4. Kích hoạt gói kmod-rtl8812eu trong cấu hình
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 5. Biên dịch gói
-          make package/compile V=s -j$(nproc)
+          # 5. Biên dịch đích danh gói kmod-rtl8812eu
+          make package/rtl8812eu/compile V=s -j$(nproc)
+
+          # 6. Kiểm tra các file apk / ipk vừa tạo
+          echo "=== List of compiled package files ==="
+          find bin/ -type f \( -name "*rtl8812eu*.apk" -o -name "*rtl8812eu*.ipk" \)
 
       - name: Upload Package to Release Assets
         uses: softprops/action-gh-release@v1
