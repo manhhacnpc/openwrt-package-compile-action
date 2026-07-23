@@ -34,14 +34,12 @@ jobs:
         run: |
           cd openwrt-sdk
           
-          # 1. Xóa sạch mọi thứ cũ liên quan đến rtl8812eu để tránh dính cache
+          # 1. Xóa sạch cache cũ và clone mã nguồn aircrack-ng
           rm -rf package/rtl8812eu
           mkdir -p package/rtl8812eu
-
-          # 2. Clone trực tiếp mã nguồn chuẩn từ aircrack-ng (hỗ trợ tốt 8812eu/8812au)
           git clone --depth 1 https://github.com/aircrack-ng/rtl8812au.git package/rtl8812eu/src
 
-          # 3. Tạo OpenWrt Package Makefile chuẩn tương thích tuyệt đối với SDK 23.05
+          # 2. Tạo OpenWrt Package Makefile khớp chính xác với tên file 8812au.ko được sinh ra
           cat << 'EOF' > package/rtl8812eu/Makefile
           include $(TOPDIR)/rules.mk
 
@@ -80,17 +78,17 @@ jobs:
           $(eval $(call KernelPackage,rtl8812eu))
           EOF
 
-          # 4. Xóa cache và cấu hình biên dịch
+          # 3. Cấu hình và kích hoạt gói kmod
           rm -rf tmp
           echo "CONFIG_PACKAGE_kmod-rtl8812eu=m" >> .config
           make defconfig
 
-          # 5. Tiến hành biên dịch gói kmod với log chi tiết (V=s)
+          # 4. Tiến hành biên dịch gói kmod
           make package/rtl8812eu/compile V=s
 
-          # 6. Gom file `.ipk` vào thư mục release_assets
+          # 5. Gom file `.ipk` vào thư mục release_assets
           mkdir -p ../release_assets
-          find bin/packages/ -type f -name "*rtl8812eu*.ipk" -o -name "*rtl8812au*.ipk" -exec cp {} ../release_assets/ \;
+          find bin/packages/ -type f -name "*rtl8812eu*.ipk" -exec cp {} ../release_assets/ \;
           
           echo "=== Compiled Assets ==="
           ls -la ../release_assets/
